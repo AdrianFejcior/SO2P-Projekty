@@ -26,7 +26,6 @@ Projekt składa się z dwóch aplikacji: serwera i klienta, które umożliwiają
     ./client
     ```
 
-
 ---
 
 ## Opis problemu/ów
@@ -57,6 +56,42 @@ Projekt składa się z dwóch aplikacji: serwera i klienta, które umożliwiają
         - Dodawanie klienta do listy.
         - Usuwanie klienta z listy.
         - Rozsyłanie wiadomości do wszystkich klientów.
+
+### Kod odpowiedzialny za sekcje krytyczne
+
+```cpp
+// Protecting access to the shared clients list
+std::vector<ConnectedClient> connectedClients;
+std::mutex clientsLock;
+
+// Sending a message to all clients except the sender
+void sendToAll(const std::string& msg, int exclude_fd) {
+    std::lock_guard<std::mutex> guard(clientsLock);
+    for (auto& client : connectedClients) {
+        if (client.socket_fd != exclude_fd) {
+            send(client.socket_fd, msg.c_str(), msg.size(), 0);
+        }
+    }
+}
+
+// Adding a client to the list
+{
+    std::lock_guard<std::mutex> guard(clientsLock);
+    connectedClients.push_back({client_fd, userName});
+}
+
+// Removing a client from the list
+{
+    std::lock_guard<std::mutex> guard(clientsLock);
+    connectedClients.erase(
+        std::remove_if(
+            connectedClients.begin(),
+            connectedClients.end(),
+            [client_fd](const ConnectedClient& c) { return c.socket_fd == client_fd; }),
+        connectedClients.end()
+    );
+}
+```
 
 ---
 

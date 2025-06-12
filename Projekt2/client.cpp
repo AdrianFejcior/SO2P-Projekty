@@ -10,6 +10,7 @@ constexpr int BUFFER_LEN = 1024;
 constexpr char SERVER_ADDR[] = "127.0.0.1";
 constexpr int SERVER_PORT = 8080;
 
+// Thread function to listen for incoming messages from the server
 void listenForMessages(int socket_fd) {
     char buffer[BUFFER_LEN];
     ssize_t recv_len;
@@ -26,27 +27,32 @@ void listenForMessages(int socket_fd) {
 }
 
 int main() {
+    // Create TCP socket
     int sock_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (sock_fd < 0) {
         std::cerr << "Could not create socket\n";
         return 1;
     }
 
+    // Set up server address structure
     sockaddr_in server{};
     server.sin_family = AF_INET;
     server.sin_port = htons(SERVER_PORT);
     inet_pton(AF_INET, SERVER_ADDR, &server.sin_addr);
 
+    // Connect to the server
     if (connect(sock_fd, (sockaddr*)&server, sizeof(server)) < 0) {
         std::cerr << "Unable to connect to server\n";
         return 1;
     }
 
+    // Send username to the server
     std::cout << "Please enter your username: ";
     std::string username;
     std::getline(std::cin, username);
     send(sock_fd, username.c_str(), username.length(), 0);
 
+    // Start a thread to receive messages from the server
     std::thread receiverThread(listenForMessages, sock_fd);
     receiverThread.detach();
 
@@ -56,9 +62,11 @@ int main() {
         if (inputMsg == "/exit") {
             break;
         }
+        // Send user message to the server
         send(sock_fd, inputMsg.c_str(), inputMsg.length(), 0);
     }
 
+    // Close the socket before exiting
     close(sock_fd);
     return 0;
 }
